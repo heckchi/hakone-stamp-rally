@@ -40,6 +40,19 @@
   header .label { font-size: 10px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; margin-bottom: 4px; }
   header h1 { font-family: 'Shippori Mincho', serif; font-size: 22px; font-weight: 600; letter-spacing: 3px; }
 
+  /* Language switcher */
+  .lang-switch {
+    position: absolute; top: 12px; right: 14px;
+    display: flex; gap: 4px;
+  }
+  .lang-btn {
+    background: transparent; border: 1px solid rgba(201,168,76,0.5);
+    color: var(--gold); font-size: 10px; letter-spacing: 1px;
+    padding: 3px 7px; border-radius: 3px; cursor: pointer;
+    font-family: 'Noto Serif JP', serif; transition: all 0.2s;
+  }
+  .lang-btn.active { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+
   /* Tab */
   .tabs { display: flex; background: var(--card-bg); border-bottom: 1px solid var(--border); }
   .tab {
@@ -202,13 +215,17 @@
 <body>
 
 <header>
-  <div class="label">Hakone Art Festival 2025</div>
-  <h1>箱根芸術祭<br>スタンプラリー</h1>
+  <div class="lang-switch">
+    <button class="lang-btn" id="btn-ja" onclick="setLang('ja')">JP</button>
+    <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+  </div>
+  <div class="label" id="h-label"></div>
+  <h1 id="h-title"></h1>
 </header>
 
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('stamps')">スタンプ</div>
-  <div class="tab" onclick="switchTab('coupons')">クーポン <span id="coupon-count-badge"></span></div>
+  <div class="tab active" id="tab-stamps" onclick="switchTab('stamps')"></div>
+  <div class="tab" id="tab-coupons" onclick="switchTab('coupons')"><span id="coupon-count-badge"></span></div>
 </div>
 
 <div class="progress-wrap">
@@ -217,7 +234,7 @@
       <span class="count" id="count">0</span>
       <span class="total"> / 25</span>
     </div>
-    <div class="label-prog">会場制覇</div>
+    <div class="label-prog" id="label-prog"></div>
   </div>
   <div class="progress-bar">
     <div class="progress-fill" id="progress-fill" style="width:0%"></div>
@@ -226,8 +243,8 @@
 
 <div class="page active" id="page-stamps">
   <div class="stamp-grid" id="stamp-grid"></div>
-  <div class="info-bar">各会場のQRコードを読み取るとスタンプとクーポンが届きます</div>
-  <button class="reset-btn" onclick="resetAll()">スタンプをリセット</button>
+  <div class="info-bar" id="info-bar"></div>
+  <button class="reset-btn" id="reset-btn" onclick="resetAll()"></button>
 </div>
 
 <div class="page" id="page-coupons">
@@ -237,23 +254,21 @@
 <div class="toast" id="toast"></div>
 
 <div class="coupon-popup" id="coupon-popup" onclick="openCouponFromPopup()">
-  <div class="cp-label">🎟 クーポン獲得</div>
+  <div class="cp-label" id="cp-label"></div>
   <div class="cp-title" id="cp-title"></div>
-  <div class="cp-tap">タップして確認 →</div>
+  <div class="cp-tap" id="cp-tap"></div>
 </div>
 
 <div class="modal-overlay" id="modal-complete">
   <div class="modal">
     <span class="trophy">🏆</span>
     <div class="gold-line"></div>
-    <div class="cert-label">CERTIFICATE OF COMPLETION</div>
-    <h2>全会場制覇</h2>
-    <p style="font-size:13px;color:var(--muted);margin:12px 0 16px;line-height:1.8;">
-      箱根芸術祭 全25会場を<br>すべて巡りました
-    </p>
+    <div class="cert-label" id="cert-label"></div>
+    <h2 id="complete-title"></h2>
+    <p id="complete-msg" style="font-size:13px;color:var(--muted);margin:12px 0 16px;line-height:1.8;"></p>
     <div class="cert-number" id="cert-number"></div>
     <div class="cert-date" id="cert-date"></div>
-    <button class="modal-close" onclick="closeComplete()">閉じる</button>
+    <button class="modal-close" id="modal-close-btn" onclick="closeComplete()"></button>
   </div>
 </div>
 
@@ -264,45 +279,146 @@
 </div>
 
 <script>
-const VENUES = [
-  "箱根迎賓館ギャラリー","彫刻の森アートスポット","湖尻アートパビリオン",
-  "強羅公園 展示棟","宮ノ下クラフト館","小涌谷 野外展示場",
-  "芦ノ湖畔アトリエ","元箱根 石畳ギャラリー","仙石原 草原ステージ",
-  "大涌谷 溶岩アート館","早雲山 展望テラス","箱根湯本 町家ギャラリー",
-  "須雲川 野外インスタレーション","入生田 庭園展示","風祭 アートホール",
-  "塔ノ沢 渓谷ギャラリー","温泉街 路地アート","関所跡 歴史アート展",
-  "湖畔の家 写真館","旧街道 彫刻ロード","甘酒茶屋 工芸展",
-  "箱根神社 奉納アート","九頭龍の森 インスタレーション","箱根ガラスの森前",
-  "ポーラ美術館 連携展示"
-];
-
-const COUPONS = [
-  { title:"ドリンク1杯無料",        desc:"ギャラリー内カフェにてドリンク1杯をご提供します。",              expire:"2025年11月30日まで" },
-  { title:"図録10%OFF",             desc:"彫刻の森ショップにて図録をお得にお求めいただけます。",            expire:"2025年11月30日まで" },
-  { title:"入館料100円引き",        desc:"湖尻アートパビリオンの入館料を割引いたします。",                  expire:"2025年11月30日まで" },
-  { title:"カフェスイーツ無料",     desc:"強羅公園展示棟カフェにてスイーツ1品をサービスします。",           expire:"2025年11月30日まで" },
-  { title:"工芸体験500円引き",      desc:"宮ノ下クラフト館の体験コースを割引でご利用いただけます。",        expire:"2025年11月30日まで" },
-  { title:"ガイドツアー無料",       desc:"小涌谷会場の専門ガイドツアーにご参加いただけます。",              expire:"2025年11月30日まで" },
-  { title:"作品ポストカード進呈",   desc:"芦ノ湖畔アトリエにてポストカード1枚をプレゼントします。",        expire:"2025年11月30日まで" },
-  { title:"抹茶セット割引",         desc:"元箱根茶屋にて抹茶セットを特別価格でご提供します。",              expire:"2025年11月30日まで" },
-  { title:"芝生エリア席優先案内",   desc:"仙石原草原ステージの特等席にご案内します。",                      expire:"2025年11月30日まで" },
-  { title:"お土産品5%OFF",          desc:"大涌谷アート館ショップにてお土産品を割引いたします。",            expire:"2025年11月30日まで" },
-  { title:"展望台優先入場",         desc:"早雲山展望テラスへ待ち時間なしで優先入場できます。",              expire:"2025年11月30日まで" },
-  { title:"温泉割引券進呈",         desc:"提携旅館の日帰り温泉を500円引きでご利用いただけます。",           expire:"2025年11月30日まで" },
-  { title:"音声ガイド無料貸出",     desc:"須雲川インスタレーションの音声ガイド端末を無料貸出します。",      expire:"2025年11月30日まで" },
-  { title:"庭園ウォーク特典",       desc:"入生田庭園の専用ルートを特別にご案内します。",                    expire:"2025年11月30日まで" },
-  { title:"コンサートチケット割引", desc:"風祭アートホールのライブイベントを割引でご覧いただけます。",      expire:"2025年11月30日まで" },
-  { title:"渓谷弁当500円引き",      desc:"塔ノ沢提携食堂にて弁当セットを割引いたします。",                  expire:"2025年11月30日まで" },
-  { title:"限定マップ進呈",         desc:"温泉街の非公開スポットも掲載した限定マップをお渡しします。",      expire:"2025年11月30日まで" },
-  { title:"歴史解説ブック無料",     desc:"関所跡展示の限定解説ブックをプレゼントします。",                  expire:"2025年11月30日まで" },
-  { title:"写真プリント1枚無料",    desc:"湖畔の家写真館にて展示作品のプリントを1枚お渡しします。",        expire:"2025年11月30日まで" },
-  { title:"旧街道ガイド無料",       desc:"旧街道彫刻ロードの専任ガイドが無料でご案内します。",              expire:"2025年11月30日まで" },
-  { title:"甘酒1杯無料",            desc:"甘酒茶屋にて名物甘酒を1杯サービスします。",                      expire:"2025年11月30日まで" },
-  { title:"お守り授与品進呈",       desc:"箱根神社参拝記念のミニお守りをお渡しします。",                    expire:"2025年11月30日まで" },
-  { title:"森林浴限定マップ進呈",   desc:"九頭龍の森の非公開ルートを記載した限定マップをお渡しします。",    expire:"2025年11月30日まで" },
-  { title:"ガラス小物10%OFF",       desc:"箱根ガラスの森ショップにて小物を割引いたします。",                expire:"2025年11月30日まで" },
-  { title:"音声ガイド無料",         desc:"ポーラ美術館連携展示の音声ガイドを無料でご利用いただけます。",    expire:"2025年11月30日まで" },
-];
+const I18N = {
+  ja: {
+    headerLabel:   "Hakone Art Festival 2025",
+    headerTitle:   "箱根芸術祭\nスタンプラリー",
+    tabStamps:     "スタンプ",
+    tabCoupons:    "クーポン",
+    labelProgress: "会場制覇",
+    infoBar:       "各会場のQRコードを読み取るとスタンプとクーポンが届きます",
+    resetBtn:      "スタンプをリセット",
+    closeBtn:      "閉じる",
+    cpLabel:       "🎟 クーポン獲得",
+    cpTap:         "タップして確認 →",
+    emptyMsg:      "まだクーポンがありません。\n会場のQRコードを読み取りましょう。",
+    certLabel:     "CERTIFICATE OF COMPLETION",
+    completeTitle: "全会場制覇",
+    completeMsg:   "箱根芸術祭 全25会場を\nすべて巡りました",
+    certNumPre:    "認定番号：",
+    certDatePre:   "取得日：",
+    codeLabel:     "クーポンコード（スタッフに提示）",
+    expirePre:     "有効期限：",
+    useBtnText:    "このクーポンを使用する",
+    usedText:      "使用済み",
+    confirmUse:    "このクーポンを使用しますか？\n使用後は元に戻せません。",
+    confirmReset:  "スタンプとクーポンをすべてリセットしますか？",
+    toastStampPre: "スタンプ取得　",
+    toastUsed:     "クーポンを使用しました",
+    lockedTitle:   "？？？",
+    lockedExpire:  "スタンプを押すと解錠されます",
+    couponBadge:   "クーポン",
+    couponListLabel: "COUPON",
+    dateFormat: (y,m,d) => `${y}年${m}月${d}日`,
+    venues: [
+      "箱根迎賓館ギャラリー","彫刻の森アートスポット","湖尻アートパビリオン",
+      "強羅公園 展示棟","宮ノ下クラフト館","小涌谷 野外展示場",
+      "芦ノ湖畔アトリエ","元箱根 石畳ギャラリー","仙石原 草原ステージ",
+      "大涌谷 溶岩アート館","早雲山 展望テラス","箱根湯本 町家ギャラリー",
+      "須雲川 野外インスタレーション","入生田 庭園展示","風祭 アートホール",
+      "塔ノ沢 渓谷ギャラリー","温泉街 路地アート","関所跡 歴史アート展",
+      "湖畔の家 写真館","旧街道 彫刻ロード","甘酒茶屋 工芸展",
+      "箱根神社 奉納アート","九頭龍の森 インスタレーション","箱根ガラスの森前",
+      "ポーラ美術館 連携展示"
+    ],
+    coupons: [
+      { title:"ドリンク1杯無料",        desc:"ギャラリー内カフェにてドリンク1杯をご提供します。",              expire:"2025年11月30日まで" },
+      { title:"図録10%OFF",             desc:"彫刻の森ショップにて図録をお得にお求めいただけます。",            expire:"2025年11月30日まで" },
+      { title:"入館料100円引き",        desc:"湖尻アートパビリオンの入館料を割引いたします。",                  expire:"2025年11月30日まで" },
+      { title:"カフェスイーツ無料",     desc:"強羅公園展示棟カフェにてスイーツ1品をサービスします。",           expire:"2025年11月30日まで" },
+      { title:"工芸体験500円引き",      desc:"宮ノ下クラフト館の体験コースを割引でご利用いただけます。",        expire:"2025年11月30日まで" },
+      { title:"ガイドツアー無料",       desc:"小涌谷会場の専門ガイドツアーにご参加いただけます。",              expire:"2025年11月30日まで" },
+      { title:"作品ポストカード進呈",   desc:"芦ノ湖畔アトリエにてポストカード1枚をプレゼントします。",        expire:"2025年11月30日まで" },
+      { title:"抹茶セット割引",         desc:"元箱根茶屋にて抹茶セットを特別価格でご提供します。",              expire:"2025年11月30日まで" },
+      { title:"芝生エリア席優先案内",   desc:"仙石原草原ステージの特等席にご案内します。",                      expire:"2025年11月30日まで" },
+      { title:"お土産品5%OFF",          desc:"大涌谷アート館ショップにてお土産品を割引いたします。",            expire:"2025年11月30日まで" },
+      { title:"展望台優先入場",         desc:"早雲山展望テラスへ待ち時間なしで優先入場できます。",              expire:"2025年11月30日まで" },
+      { title:"温泉割引券進呈",         desc:"提携旅館の日帰り温泉を500円引きでご利用いただけます。",           expire:"2025年11月30日まで" },
+      { title:"音声ガイド無料貸出",     desc:"須雲川インスタレーションの音声ガイド端末を無料貸出します。",      expire:"2025年11月30日まで" },
+      { title:"庭園ウォーク特典",       desc:"入生田庭園の専用ルートを特別にご案内します。",                    expire:"2025年11月30日まで" },
+      { title:"コンサートチケット割引", desc:"風祭アートホールのライブイベントを割引でご覧いただけます。",      expire:"2025年11月30日まで" },
+      { title:"渓谷弁当500円引き",      desc:"塔ノ沢提携食堂にて弁当セットを割引いたします。",                  expire:"2025年11月30日まで" },
+      { title:"限定マップ進呈",         desc:"温泉街の非公開スポットも掲載した限定マップをお渡しします。",      expire:"2025年11月30日まで" },
+      { title:"歴史解説ブック無料",     desc:"関所跡展示の限定解説ブックをプレゼントします。",                  expire:"2025年11月30日まで" },
+      { title:"写真プリント1枚無料",    desc:"湖畔の家写真館にて展示作品のプリントを1枚お渡しします。",        expire:"2025年11月30日まで" },
+      { title:"旧街道ガイド無料",       desc:"旧街道彫刻ロードの専任ガイドが無料でご案内します。",              expire:"2025年11月30日まで" },
+      { title:"甘酒1杯無料",            desc:"甘酒茶屋にて名物甘酒を1杯サービスします。",                      expire:"2025年11月30日まで" },
+      { title:"お守り授与品進呈",       desc:"箱根神社参拝記念のミニお守りをお渡しします。",                    expire:"2025年11月30日まで" },
+      { title:"森林浴限定マップ進呈",   desc:"九頭龍の森の非公開ルートを記載した限定マップをお渡しします。",    expire:"2025年11月30日まで" },
+      { title:"ガラス小物10%OFF",       desc:"箱根ガラスの森ショップにて小物を割引いたします。",                expire:"2025年11月30日まで" },
+      { title:"音声ガイド無料",         desc:"ポーラ美術館連携展示の音声ガイドを無料でご利用いただけます。",    expire:"2025年11月30日まで" },
+    ],
+  },
+  en: {
+    headerLabel:   "Hakone Art Festival 2025",
+    headerTitle:   "Hakone Art Festival\nStamp Rally",
+    tabStamps:     "Stamps",
+    tabCoupons:    "Coupons",
+    labelProgress: "Venues Done",
+    infoBar:       "Scan the QR code at each venue to collect stamps & coupons.",
+    resetBtn:      "Reset Stamps",
+    closeBtn:      "Close",
+    cpLabel:       "🎟 Coupon Unlocked",
+    cpTap:         "Tap to view →",
+    emptyMsg:      "No coupons yet.\nScan QR codes at each venue to unlock them.",
+    certLabel:     "CERTIFICATE OF COMPLETION",
+    completeTitle: "All Venues Complete!",
+    completeMsg:   "You have visited all 25 venues\nof the Hakone Art Festival.",
+    certNumPre:    "Certificate No.: ",
+    certDatePre:   "Date: ",
+    codeLabel:     "Coupon Code (show to staff)",
+    expirePre:     "Valid until: ",
+    useBtnText:    "Use This Coupon",
+    usedText:      "Used",
+    confirmUse:    "Use this coupon?\nThis cannot be undone.",
+    confirmReset:  "Reset all stamps and coupons?",
+    toastStampPre: "Stamp collected — ",
+    toastUsed:     "Coupon used",
+    lockedTitle:   "???",
+    lockedExpire:  "Collect the stamp to unlock",
+    couponBadge:   "Coupon",
+    couponListLabel: "COUPON",
+    dateFormat: (y,m,d) => `${m}/${d}/${y}`,
+    venues: [
+      "Hakone Geihinkan Gallery","Sculpture Forest Art Spot","Kojiri Art Pavilion",
+      "Gora Park Exhibition Wing","Miyanoshita Craft Center","Kowakudani Outdoor Gallery",
+      "Lake Ashi Studio","Moto-Hakone Cobblestone Gallery","Sengokuhara Meadow Stage",
+      "Owakudani Lava Art Museum","Sounzan Overlook Terrace","Yumoto Machiya Gallery",
+      "Sukumo River Outdoor Installation","Iruuda Garden Exhibition","Kazamatsuri Art Hall",
+      "Tonosawa Gorge Gallery","Onsen District Alley Art","Hakone Checkpoint Historical Art",
+      "Lakeside House Photo Gallery","Old Highway Sculpture Road","Amazake Chaya Craft Show",
+      "Hakone Shrine Dedication Art","Kuzuryu Forest Installation","Glass Forest of Hakone",
+      "Pola Museum Partner Exhibition"
+    ],
+    coupons: [
+      { title:"Free Drink",               desc:"Complimentary drink at the gallery café.",                             expire:"Valid until Nov 30, 2025" },
+      { title:"10% Off Catalog",          desc:"10% off exhibition catalogs at Sculpture Forest Shop.",                expire:"Valid until Nov 30, 2025" },
+      { title:"¥100 Off Admission",       desc:"¥100 discount on admission to Kojiri Art Pavilion.",                  expire:"Valid until Nov 30, 2025" },
+      { title:"Free Café Sweets",         desc:"Complimentary sweets at Gora Park café.",                             expire:"Valid until Nov 30, 2025" },
+      { title:"¥500 Off Craft Workshop",  desc:"¥500 discount on craft workshops at Miyanoshita Craft Center.",       expire:"Valid until Nov 30, 2025" },
+      { title:"Free Guided Tour",         desc:"Join a guided tour at Kowakudani venue at no charge.",                expire:"Valid until Nov 30, 2025" },
+      { title:"Free Artwork Postcard",    desc:"Receive one artwork postcard at Lake Ashi Studio.",                   expire:"Valid until Nov 30, 2025" },
+      { title:"Discounted Matcha Set",    desc:"Enjoy a matcha set at a special price at Moto-Hakone.",               expire:"Valid until Nov 30, 2025" },
+      { title:"Priority Lawn Seating",    desc:"Reserved front-row seating at Sengokuhara Meadow Stage.",             expire:"Valid until Nov 30, 2025" },
+      { title:"5% Off Souvenirs",         desc:"5% discount on souvenirs at Owakudani Art Museum Shop.",              expire:"Valid until Nov 30, 2025" },
+      { title:"Priority Observation Entry",desc:"Skip the queue at Sounzan Observation Terrace.",                    expire:"Valid until Nov 30, 2025" },
+      { title:"Hot Spring Discount",      desc:"¥500 off day-use hot springs at a partner inn.",                      expire:"Valid until Nov 30, 2025" },
+      { title:"Free Audio Guide",         desc:"Borrow an audio guide device at Sukumo River Installation.",          expire:"Valid until Nov 30, 2025" },
+      { title:"Garden Walk Privilege",    desc:"Access an exclusive route in Iruuda Garden.",                         expire:"Valid until Nov 30, 2025" },
+      { title:"Concert Ticket Discount",  desc:"Discounted tickets to live events at Kazamatsuri Art Hall.",          expire:"Valid until Nov 30, 2025" },
+      { title:"¥500 Off Valley Bento",    desc:"¥500 off a bento set at Tonosawa partner restaurant.",               expire:"Valid until Nov 30, 2025" },
+      { title:"Free Limited Map",         desc:"Exclusive map featuring hidden spots in the onsen district.",         expire:"Valid until Nov 30, 2025" },
+      { title:"Free History Guide Book",  desc:"Take home a limited-edition history guide at the Checkpoint site.",   expire:"Valid until Nov 30, 2025" },
+      { title:"Free Photo Print",         desc:"Receive one print of an exhibited photo at Lakeside House.",          expire:"Valid until Nov 30, 2025" },
+      { title:"Free Old Highway Guide",   desc:"A dedicated guide will lead you along the Old Highway Sculpture Road.",expire:"Valid until Nov 30, 2025" },
+      { title:"Free Amazake",             desc:"Enjoy a complimentary cup of amazake (sweet sake) at Amazake Chaya.", expire:"Valid until Nov 30, 2025" },
+      { title:"Free Omamori Charm",       desc:"Receive a commemorative mini omamori from Hakone Shrine.",            expire:"Valid until Nov 30, 2025" },
+      { title:"Free Forest Walk Map",     desc:"Exclusive map of the hidden trail in Kuzuryu Forest.",               expire:"Valid until Nov 30, 2025" },
+      { title:"10% Off Glass Items",      desc:"10% off glass accessories at Glass Forest of Hakone Shop.",           expire:"Valid until Nov 30, 2025" },
+      { title:"Free Audio Guide",         desc:"Enjoy a free audio guide at the Pola Museum Partner Exhibition.",     expire:"Valid until Nov 30, 2025" },
+    ],
+  },
+};
 
 const KEYS = {
   0:'a1b',1:'c2d',2:'e3f',3:'g4h',4:'i5j',5:'k6l',6:'m7n',7:'o8p',8:'q9r',9:'s0t',
@@ -311,18 +427,52 @@ const KEYS = {
 };
 
 const TOTAL = 25;
+let lang        = localStorage.getItem('hakone_lang') || 'ja';
 let collected   = JSON.parse(localStorage.getItem('hakone_stamps') || '[]');
 let usedCoupons = JSON.parse(localStorage.getItem('hakone_used')   || '[]');
 let popupVenueId = null;
+
+function t(key) { return I18N[lang][key]; }
 
 function save() {
   localStorage.setItem('hakone_stamps', JSON.stringify(collected));
   localStorage.setItem('hakone_used',   JSON.stringify(usedCoupons));
 }
 
+/* Language */
+function setLang(l) {
+  lang = l;
+  localStorage.setItem('hakone_lang', lang);
+  document.documentElement.lang = lang === 'ja' ? 'ja' : 'en';
+  document.getElementById('btn-ja').classList.toggle('active', lang === 'ja');
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  applyStaticText();
+  renderGrid();
+  const couponPage = document.getElementById('page-coupons');
+  if (couponPage.classList.contains('active')) renderCouponList();
+}
+
+function applyStaticText() {
+  document.getElementById('h-label').textContent  = t('headerLabel');
+  document.getElementById('h-title').innerHTML    = t('headerTitle').replace('\n','<br>');
+  document.getElementById('tab-stamps').innerHTML = t('tabStamps');
+  const badge = document.getElementById('coupon-count-badge');
+  const badgeText = collected.length > 0 ? ` (${collected.length})` : '';
+  document.getElementById('tab-coupons').innerHTML = t('tabCoupons') + `<span id="coupon-count-badge">${badgeText}</span>`;
+  document.getElementById('label-prog').textContent  = t('labelProgress');
+  document.getElementById('info-bar').textContent    = t('infoBar');
+  document.getElementById('reset-btn').textContent   = t('resetBtn');
+  document.getElementById('cp-label').textContent    = t('cpLabel');
+  document.getElementById('cp-tap').textContent      = t('cpTap');
+  document.getElementById('cert-label').textContent  = t('certLabel');
+  document.getElementById('complete-title').textContent = t('completeTitle');
+  document.getElementById('complete-msg').innerHTML  = t('completeMsg').replace('\n','<br>');
+  document.getElementById('modal-close-btn').textContent = t('closeBtn');
+}
+
 /* Tab */
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['stamps','coupons'][i] === tab));
+  document.querySelectorAll('.tab').forEach((el,i) => el.classList.toggle('active', ['stamps','coupons'][i] === tab));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + tab).classList.add('active');
   if (tab === 'coupons') renderCouponList();
@@ -333,21 +483,22 @@ function updateProgress() {
   const n = collected.length;
   document.getElementById('count').textContent = n;
   document.getElementById('progress-fill').style.width = (n / TOTAL * 100) + '%';
-  document.getElementById('coupon-count-badge').textContent = n > 0 ? `(${n})` : '';
+  const badge = document.getElementById('coupon-count-badge');
+  if (badge) badge.textContent = n > 0 ? ` (${n})` : '';
 }
 
 /* Toast */
 function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
 }
 
-/* Coupon popup (bottom sheet) */
+/* Coupon popup */
 function showCouponPopup(id) {
   popupVenueId = id;
-  document.getElementById('cp-title').textContent = COUPONS[id].title;
+  document.getElementById('cp-title').textContent = t('coupons')[id].title;
   const p = document.getElementById('coupon-popup');
   p.classList.add('show');
   setTimeout(() => p.classList.remove('show'), 4500);
@@ -359,17 +510,13 @@ function openCouponFromPopup() {
 
 /* Collect stamp */
 function collectStamp(id, cardEl) {
-  if (collected.includes(id)) {
-    // already collected → show coupon detail
-    openCouponModal(id);
-    return;
-  }
+  if (collected.includes(id)) { openCouponModal(id); return; }
   collected.push(id);
   save();
   cardEl.classList.add('collected','animate');
   setTimeout(() => cardEl.classList.remove('animate'), 500);
   updateProgress();
-  showToast('スタンプ取得　' + VENUES[id]);
+  showToast(t('toastStampPre') + t('venues')[id]);
   setTimeout(() => showCouponPopup(id), 900);
   if (collected.length === TOTAL) setTimeout(showComplete, 1800);
 }
@@ -389,8 +536,8 @@ function renderGrid() {
         </svg>
       </div>
       <div class="stamp-number">${String(i+1).padStart(2,'0')}</div>
-      <div class="stamp-name">${VENUES[i]}</div>
-      <div class="coupon-badge">クーポン</div>
+      <div class="stamp-name">${t('venues')[i]}</div>
+      <div class="coupon-badge">${t('couponBadge')}</div>
     `;
     card.addEventListener('click', () => collectStamp(i, card));
     grid.appendChild(card);
@@ -402,13 +549,13 @@ function renderCouponList() {
   const list = document.getElementById('coupon-list');
   list.innerHTML = '';
   if (collected.length === 0) {
-    list.innerHTML = '<div class="empty-msg">まだクーポンがありません。<br>会場のQRコードを読み取りましょう。</div>';
+    list.innerHTML = `<div class="empty-msg">${t('emptyMsg').replace('\n','<br>')}</div>`;
     return;
   }
   for (let i = 0; i < TOTAL; i++) {
     const unlocked = collected.includes(i);
     const used     = usedCoupons.includes(i);
-    const cp       = COUPONS[i];
+    const cp       = t('coupons')[i];
     const item     = document.createElement('div');
     item.className = 'coupon-item' + (!unlocked ? ' locked' : '');
     item.innerHTML = `
@@ -418,12 +565,12 @@ function renderCouponList() {
       </div>
       <div class="coupon-sep"></div>
       <div class="coupon-right">
-        <div class="c-label">COUPON</div>
-        <div class="c-title">${unlocked ? cp.title : '？？？'}</div>
-        <div class="c-venue">${VENUES[i]}</div>
+        <div class="c-label">${t('couponListLabel')}</div>
+        <div class="c-title">${unlocked ? cp.title : t('lockedTitle')}</div>
+        <div class="c-venue">${t('venues')[i]}</div>
         ${unlocked
-          ? `<div class="c-expire">有効期限：${cp.expire}</div>${used ? '<span class="c-used-badge">使用済み</span>' : ''}`
-          : '<div class="c-expire">スタンプを押すと解錠されます</div>'
+          ? `<div class="c-expire">${t('expirePre')}${cp.expire}</div>${used ? `<span class="c-used-badge">${t('usedText')}</span>` : ''}`
+          : `<div class="c-expire">${t('lockedExpire')}</div>`
         }
       </div>
     `;
@@ -434,22 +581,22 @@ function renderCouponList() {
 
 /* Coupon detail modal */
 function openCouponModal(id) {
-  const cp   = COUPONS[id];
+  const cp   = t('coupons')[id];
   const used = usedCoupons.includes(id);
   const code = 'HAK' + String(id+1).padStart(2,'0') + KEYS[id].toUpperCase();
   document.getElementById('coupon-modal-inner').innerHTML = `
     <button class="modal-x" onclick="closeCouponModal()">×</button>
-    <div class="c-tag">🎟 COUPON · ${String(id+1).padStart(2,'0')}</div>
+    <div class="c-tag">🎟 ${t('couponListLabel')} · ${String(id+1).padStart(2,'0')}</div>
     <h3>${cp.title}</h3>
-    <div class="c-venue-name">${VENUES[id]}</div>
+    <div class="c-venue-name">${t('venues')[id]}</div>
     <div class="coupon-code-box">
-      <div class="code-label">クーポンコード（スタッフに提示）</div>
+      <div class="code-label">${t('codeLabel')}</div>
       <div class="code">${code}</div>
     </div>
     <div class="coupon-detail-desc">${cp.desc}</div>
-    <div class="coupon-expire">有効期限：${cp.expire}</div>
+    <div class="coupon-expire">${t('expirePre')}${cp.expire}</div>
     <button class="use-btn" id="use-btn-${id}" onclick="useCoupon(${id})" ${used ? 'disabled' : ''}>
-      ${used ? '使用済み' : 'このクーポンを使用する'}
+      ${used ? t('usedText') : t('useBtnText')}
     </button>
   `;
   document.getElementById('modal-coupon').classList.add('show');
@@ -460,28 +607,28 @@ function closeCouponModal() {
 }
 function useCoupon(id) {
   if (usedCoupons.includes(id)) return;
-  if (!confirm('このクーポンを使用しますか？\n使用後は元に戻せません。')) return;
+  if (!confirm(t('confirmUse'))) return;
   usedCoupons.push(id);
   save();
   const btn = document.getElementById('use-btn-' + id);
-  if (btn) { btn.disabled = true; btn.textContent = '使用済み'; }
-  showToast('クーポンを使用しました');
+  if (btn) { btn.disabled = true; btn.textContent = t('usedText'); }
+  showToast(t('toastUsed'));
 }
 
 /* Completion */
 function showComplete() {
   const now = new Date();
-  const dateStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日';
+  const dateStr = t('dateFormat')(now.getFullYear(), now.getMonth()+1, now.getDate());
   const num = 'HAK-' + String(Math.floor(Math.random()*90000)+10000);
-  document.getElementById('cert-number').textContent = '認定番号：' + num;
-  document.getElementById('cert-date').textContent   = '取得日：'  + dateStr;
+  document.getElementById('cert-number').textContent = t('certNumPre') + num;
+  document.getElementById('cert-date').textContent   = t('certDatePre') + dateStr;
   document.getElementById('modal-complete').classList.add('show');
 }
 function closeComplete() { document.getElementById('modal-complete').classList.remove('show'); }
 
 /* Reset */
 function resetAll() {
-  if (!confirm('スタンプとクーポンをすべてリセットしますか？')) return;
+  if (!confirm(t('confirmReset'))) return;
   collected = []; usedCoupons = [];
   save(); renderGrid(); updateProgress();
 }
@@ -501,7 +648,7 @@ function checkURLParam() {
   }
 }
 
-renderGrid();
+setLang(lang);
 updateProgress();
 checkURLParam();
 </script>
