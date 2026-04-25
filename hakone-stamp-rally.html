@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>箱根芸術祭 スタンプラリー</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=Shippori+Mincho:wght@400;600&display=swap');
+
+  :root {
+    --bg: #f7f4ef;
+    --ink: #1a1714;
+    --accent: #8b3a2a;
+    --gold: #c9a84c;
+    --muted: #8a8278;
+    --stamp-empty: #d9d3c9;
+    --card-bg: #ffffff;
+    --border: #e0d9cf;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Serif JP', serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* Header */
+  header {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 28px 20px 20px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header .label { font-size: 10px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; margin-bottom: 4px; }
+  header h1 { font-family: 'Shippori Mincho', serif; font-size: 22px; font-weight: 600; letter-spacing: 3px; }
+
+  /* Tab */
+  .tabs { display: flex; background: var(--card-bg); border-bottom: 1px solid var(--border); }
+  .tab {
+    flex: 1; padding: 12px 0; text-align: center; font-size: 12px; letter-spacing: 1px;
+    color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Progress */
+  .progress-wrap { padding: 16px 20px 12px; background: var(--card-bg); border-bottom: 1px solid var(--border); }
+  .progress-info { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .progress-info .count { font-size: 28px; font-weight: 600; color: var(--accent); font-family: 'Shippori Mincho', serif; line-height: 1; }
+  .progress-info .total { font-size: 13px; color: var(--muted); }
+  .progress-info .label-prog { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  .progress-bar { height: 4px; background: var(--stamp-empty); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.6s ease; }
+
+  /* Pages */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Stamp grid */
+  .stamp-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 16px; }
+  .stamp-card {
+    aspect-ratio: 1; border-radius: 8px; background: var(--card-bg); border: 1.5px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: transform 0.15s; position: relative; overflow: hidden;
+  }
+  .stamp-card.collected { border-color: var(--accent); background: #fdf7f5; }
+  .stamp-card:active { transform: scale(0.95); }
+  .stamp-mark {
+    width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--stamp-empty);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 4px; transition: all 0.3s;
+  }
+  .stamp-card.collected .stamp-mark { border-color: var(--accent); background: var(--accent); }
+  .stamp-mark svg { opacity: 0; transition: opacity 0.3s; }
+  .stamp-card.collected .stamp-mark svg { opacity: 1; }
+  .stamp-number { font-size: 11px; color: var(--stamp-empty); font-weight: 600; letter-spacing: 0.5px; transition: color 0.3s; }
+  .stamp-card.collected .stamp-number { color: var(--accent); }
+  .stamp-name { font-size: 8px; color: var(--muted); text-align: center; padding: 0 2px; line-height: 1.3; margin-top: 2px; }
+  .stamp-card.collected .stamp-name { color: var(--ink); }
+  .coupon-badge {
+    position: absolute; top: 4px; right: 4px; background: var(--gold); color: #fff;
+    font-size: 7px; letter-spacing: 0.5px; padding: 1px 4px; border-radius: 3px; display: none;
+  }
+  .stamp-card.collected .coupon-badge { display: block; }
+
+  /* Coupon list */
+  .coupon-list { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .coupon-item {
+    background: var(--card-bg); border: 1.5px solid var(--border); border-radius: 10px;
+    display: flex; align-items: stretch; overflow: hidden; cursor: pointer; transition: transform 0.15s;
+  }
+  .coupon-item:active { transform: scale(0.98); }
+  .coupon-item.locked { opacity: 0.45; cursor: default; }
+  .coupon-left {
+    width: 56px; background: var(--ink); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; flex-shrink: 0; gap: 4px; padding: 12px 0;
+  }
+  .coupon-left .venue-num { font-size: 9px; color: var(--gold); letter-spacing: 1px; }
+  .coupon-left .lock-icon { font-size: 18px; }
+  .coupon-sep {
+    width: 1px; flex-shrink: 0;
+    background: repeating-linear-gradient(to bottom, var(--border) 0px, var(--border) 6px, transparent 6px, transparent 12px);
+  }
+  .coupon-right { padding: 12px 14px; flex: 1; }
+  .coupon-right .c-label { font-size: 9px; letter-spacing: 2px; color: var(--gold); margin-bottom: 4px; }
+  .coupon-right .c-title { font-family: 'Shippori Mincho', serif; font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .coupon-right .c-venue { font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+  .coupon-right .c-expire { font-size: 10px; color: var(--muted); }
+  .coupon-right .c-used-badge {
+    display: inline-block; font-size: 10px; background: var(--stamp-empty); color: var(--muted);
+    padding: 2px 8px; border-radius: 4px; margin-top: 4px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--ink); color: var(--bg); padding: 10px 20px; border-radius: 24px;
+    font-size: 13px; letter-spacing: 1px; transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 200; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* New coupon popup */
+  .coupon-popup {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(120px);
+    background: var(--card-bg); border: 1.5px solid var(--gold); border-radius: 12px;
+    padding: 14px 20px; max-width: 280px; width: 90%; z-index: 250;
+    transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  }
+  .coupon-popup.show { transform: translateX(-50%) translateY(0); }
+  .coupon-popup .cp-label { font-size: 9px; letter-spacing: 3px; color: var(--gold); margin-bottom: 4px; }
+  .coupon-popup .cp-title { font-family: 'Shippori Mincho', serif; font-size: 15px; font-weight: 600; }
+  .coupon-popup .cp-tap { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  /* Modals */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(26,23,20,0.85); z-index: 300;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--bg); border-radius: 12px; padding: 36px 24px 28px;
+    max-width: 320px; width: 100%; text-align: center; position: relative;
+  }
+  .modal .gold-line { width: 40px; height: 2px; background: var(--gold); margin: 0 auto 16px; }
+  .modal h2 { font-family: 'Shippori Mincho', serif; font-size: 20px; font-weight: 600; letter-spacing: 3px; margin-bottom: 8px; }
+  .modal .cert-label { font-size: 10px; letter-spacing: 3px; color: var(--gold); margin-bottom: 16px; }
+  .modal .cert-number, .modal .cert-date { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .modal .trophy { font-size: 48px; margin-bottom: 16px; display: block; }
+  .modal-close {
+    background: var(--ink); color: var(--bg); border: none; border-radius: 6px; padding: 12px 32px;
+    font-family: 'Noto Serif JP', serif; font-size: 13px; letter-spacing: 2px; cursor: pointer; margin-top: 20px;
+  }
+
+  /* Coupon detail modal */
+  .coupon-modal-inner { text-align: left; position: relative; }
+  .coupon-modal-inner .c-tag { font-size: 9px; letter-spacing: 3px; color: var(--gold); margin-bottom: 8px; }
+  .coupon-modal-inner h3 { font-family: 'Shippori Mincho', serif; font-size: 22px; font-weight: 600; letter-spacing: 2px; margin-bottom: 4px; }
+  .coupon-modal-inner .c-venue-name { font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+  .coupon-code-box { background: var(--ink); border-radius: 8px; padding: 18px; text-align: center; margin-bottom: 16px; }
+  .coupon-code-box .code-label { font-size: 9px; letter-spacing: 3px; color: var(--gold); margin-bottom: 6px; }
+  .coupon-code-box .code { font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 600; letter-spacing: 5px; color: var(--bg); }
+  .coupon-detail-desc { font-size: 13px; color: var(--ink); line-height: 1.8; margin-bottom: 12px; }
+  .coupon-expire { font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+  .use-btn {
+    width: 100%; background: var(--accent); color: var(--bg); border: none;
+    border-radius: 8px; padding: 14px; font-family: 'Noto Serif JP', serif; font-size: 14px; letter-spacing: 2px; cursor: pointer;
+  }
+  .use-btn:disabled { background: var(--stamp-empty); color: var(--muted); cursor: default; }
+  .modal-x {
+    position: absolute; top: -8px; right: -4px;
+    background: none; border: none; font-size: 22px; color: var(--muted); cursor: pointer; line-height: 1;
+  }
+
+  @keyframes stampIn {
+    0% { transform: scale(2); opacity: 0; }
+    60% { transform: scale(0.9); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .stamp-card.animate .stamp-mark { animation: stampIn 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+
+  .info-bar {
+    padding: 12px 16px; font-size: 11px; color: var(--muted); text-align: center;
+    letter-spacing: 0.5px; border-top: 1px solid var(--border); background: var(--card-bg);
+  }
+  .reset-btn {
+    display: block; margin: 16px auto 24px; background: none; border: 1px solid var(--border);
+    color: var(--muted); font-family: 'Noto Serif JP', serif; font-size: 11px; letter-spacing: 1px;
+    padding: 6px 16px; border-radius: 4px; cursor: pointer;
+  }
+  .empty-msg { text-align: center; color: var(--muted); font-size: 13px; padding: 48px 20px; line-height: 2; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="label">Hakone Art Festival 2025</div>
+  <h1>箱根芸術祭<br>スタンプラリー</h1>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('stamps')">スタンプ</div>
+  <div class="tab" onclick="switchTab('coupons')">クーポン <span id="coupon-count-badge"></span></div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-info">
+    <div>
+      <span class="count" id="count">0</span>
+      <span class="total"> / 25</span>
+    </div>
+    <div class="label-prog">会場制覇</div>
+  </div>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+</div>
+
+<div class="page active" id="page-stamps">
+  <div class="stamp-grid" id="stamp-grid"></div>
+  <div class="info-bar">各会場のQRコードを読み取るとスタンプとクーポンが届きます</div>
+  <button class="reset-btn" onclick="resetAll()">スタンプをリセット</button>
+</div>
+
+<div class="page" id="page-coupons">
+  <div class="coupon-list" id="coupon-list"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="coupon-popup" id="coupon-popup" onclick="openCouponFromPopup()">
+  <div class="cp-label">🎟 クーポン獲得</div>
+  <div class="cp-title" id="cp-title"></div>
+  <div class="cp-tap">タップして確認 →</div>
+</div>
+
+<div class="modal-overlay" id="modal-complete">
+  <div class="modal">
+    <span class="trophy">🏆</span>
+    <div class="gold-line"></div>
+    <div class="cert-label">CERTIFICATE OF COMPLETION</div>
+    <h2>全会場制覇</h2>
+    <p style="font-size:13px;color:var(--muted);margin:12px 0 16px;line-height:1.8;">
+      箱根芸術祭 全25会場を<br>すべて巡りました
+    </p>
+    <div class="cert-number" id="cert-number"></div>
+    <div class="cert-date" id="cert-date"></div>
+    <button class="modal-close" onclick="closeComplete()">閉じる</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-coupon">
+  <div class="modal">
+    <div class="coupon-modal-inner" id="coupon-modal-inner"></div>
+  </div>
+</div>
+
+<script>
+const VENUES = [
+  "箱根迎賓館ギャラリー","彫刻の森アートスポット","湖尻アートパビリオン",
+  "強羅公園 展示棟","宮ノ下クラフト館","小涌谷 野外展示場",
+  "芦ノ湖畔アトリエ","元箱根 石畳ギャラリー","仙石原 草原ステージ",
+  "大涌谷 溶岩アート館","早雲山 展望テラス","箱根湯本 町家ギャラリー",
+  "須雲川 野外インスタレーション","入生田 庭園展示","風祭 アートホール",
+  "塔ノ沢 渓谷ギャラリー","温泉街 路地アート","関所跡 歴史アート展",
+  "湖畔の家 写真館","旧街道 彫刻ロード","甘酒茶屋 工芸展",
+  "箱根神社 奉納アート","九頭龍の森 インスタレーション","箱根ガラスの森前",
+  "ポーラ美術館 連携展示"
+];
+
+const COUPONS = [
+  { title:"ドリンク1杯無料",        desc:"ギャラリー内カフェにてドリンク1杯をご提供します。",              expire:"2025年11月30日まで" },
+  { title:"図録10%OFF",             desc:"彫刻の森ショップにて図録をお得にお求めいただけます。",            expire:"2025年11月30日まで" },
+  { title:"入館料100円引き",        desc:"湖尻アートパビリオンの入館料を割引いたします。",                  expire:"2025年11月30日まで" },
+  { title:"カフェスイーツ無料",     desc:"強羅公園展示棟カフェにてスイーツ1品をサービスします。",           expire:"2025年11月30日まで" },
+  { title:"工芸体験500円引き",      desc:"宮ノ下クラフト館の体験コースを割引でご利用いただけます。",        expire:"2025年11月30日まで" },
+  { title:"ガイドツアー無料",       desc:"小涌谷会場の専門ガイドツアーにご参加いただけます。",              expire:"2025年11月30日まで" },
+  { title:"作品ポストカード進呈",   desc:"芦ノ湖畔アトリエにてポストカード1枚をプレゼントします。",        expire:"2025年11月30日まで" },
+  { title:"抹茶セット割引",         desc:"元箱根茶屋にて抹茶セットを特別価格でご提供します。",              expire:"2025年11月30日まで" },
+  { title:"芝生エリア席優先案内",   desc:"仙石原草原ステージの特等席にご案内します。",                      expire:"2025年11月30日まで" },
+  { title:"お土産品5%OFF",          desc:"大涌谷アート館ショップにてお土産品を割引いたします。",            expire:"2025年11月30日まで" },
+  { title:"展望台優先入場",         desc:"早雲山展望テラスへ待ち時間なしで優先入場できます。",              expire:"2025年11月30日まで" },
+  { title:"温泉割引券進呈",         desc:"提携旅館の日帰り温泉を500円引きでご利用いただけます。",           expire:"2025年11月30日まで" },
+  { title:"音声ガイド無料貸出",     desc:"須雲川インスタレーションの音声ガイド端末を無料貸出します。",      expire:"2025年11月30日まで" },
+  { title:"庭園ウォーク特典",       desc:"入生田庭園の専用ルートを特別にご案内します。",                    expire:"2025年11月30日まで" },
+  { title:"コンサートチケット割引", desc:"風祭アートホールのライブイベントを割引でご覧いただけます。",      expire:"2025年11月30日まで" },
+  { title:"渓谷弁当500円引き",      desc:"塔ノ沢提携食堂にて弁当セットを割引いたします。",                  expire:"2025年11月30日まで" },
+  { title:"限定マップ進呈",         desc:"温泉街の非公開スポットも掲載した限定マップをお渡しします。",      expire:"2025年11月30日まで" },
+  { title:"歴史解説ブック無料",     desc:"関所跡展示の限定解説ブックをプレゼントします。",                  expire:"2025年11月30日まで" },
+  { title:"写真プリント1枚無料",    desc:"湖畔の家写真館にて展示作品のプリントを1枚お渡しします。",        expire:"2025年11月30日まで" },
+  { title:"旧街道ガイド無料",       desc:"旧街道彫刻ロードの専任ガイドが無料でご案内します。",              expire:"2025年11月30日まで" },
+  { title:"甘酒1杯無料",            desc:"甘酒茶屋にて名物甘酒を1杯サービスします。",                      expire:"2025年11月30日まで" },
+  { title:"お守り授与品進呈",       desc:"箱根神社参拝記念のミニお守りをお渡しします。",                    expire:"2025年11月30日まで" },
+  { title:"森林浴限定マップ進呈",   desc:"九頭龍の森の非公開ルートを記載した限定マップをお渡しします。",    expire:"2025年11月30日まで" },
+  { title:"ガラス小物10%OFF",       desc:"箱根ガラスの森ショップにて小物を割引いたします。",                expire:"2025年11月30日まで" },
+  { title:"音声ガイド無料",         desc:"ポーラ美術館連携展示の音声ガイドを無料でご利用いただけます。",    expire:"2025年11月30日まで" },
+];
+
+const KEYS = {
+  0:'a1b',1:'c2d',2:'e3f',3:'g4h',4:'i5j',5:'k6l',6:'m7n',7:'o8p',8:'q9r',9:'s0t',
+  10:'u1v',11:'w2x',12:'y3z',13:'a4b',14:'c5d',15:'e6f',16:'g7h',17:'i8j',18:'k9l',
+  19:'m0n',20:'o1p',21:'q2r',22:'s3t',23:'u4v',24:'w5x'
+};
+
+const TOTAL = 25;
+let collected   = JSON.parse(localStorage.getItem('hakone_stamps') || '[]');
+let usedCoupons = JSON.parse(localStorage.getItem('hakone_used')   || '[]');
+let popupVenueId = null;
+
+function save() {
+  localStorage.setItem('hakone_stamps', JSON.stringify(collected));
+  localStorage.setItem('hakone_used',   JSON.stringify(usedCoupons));
+}
+
+/* Tab */
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['stamps','coupons'][i] === tab));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  if (tab === 'coupons') renderCouponList();
+}
+
+/* Progress */
+function updateProgress() {
+  const n = collected.length;
+  document.getElementById('count').textContent = n;
+  document.getElementById('progress-fill').style.width = (n / TOTAL * 100) + '%';
+  document.getElementById('coupon-count-badge').textContent = n > 0 ? `(${n})` : '';
+}
+
+/* Toast */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* Coupon popup (bottom sheet) */
+function showCouponPopup(id) {
+  popupVenueId = id;
+  document.getElementById('cp-title').textContent = COUPONS[id].title;
+  const p = document.getElementById('coupon-popup');
+  p.classList.add('show');
+  setTimeout(() => p.classList.remove('show'), 4500);
+}
+function openCouponFromPopup() {
+  document.getElementById('coupon-popup').classList.remove('show');
+  if (popupVenueId !== null) openCouponModal(popupVenueId);
+}
+
+/* Collect stamp */
+function collectStamp(id, cardEl) {
+  if (collected.includes(id)) {
+    // already collected → show coupon detail
+    openCouponModal(id);
+    return;
+  }
+  collected.push(id);
+  save();
+  cardEl.classList.add('collected','animate');
+  setTimeout(() => cardEl.classList.remove('animate'), 500);
+  updateProgress();
+  showToast('スタンプ取得　' + VENUES[id]);
+  setTimeout(() => showCouponPopup(id), 900);
+  if (collected.length === TOTAL) setTimeout(showComplete, 1800);
+}
+
+/* Stamp grid */
+function renderGrid() {
+  const grid = document.getElementById('stamp-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < TOTAL; i++) {
+    const done = collected.includes(i);
+    const card = document.createElement('div');
+    card.className = 'stamp-card' + (done ? ' collected' : '');
+    card.innerHTML = `
+      <div class="stamp-mark">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8l3.5 3.5 6.5-7" stroke="#f7f4ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="stamp-number">${String(i+1).padStart(2,'0')}</div>
+      <div class="stamp-name">${VENUES[i]}</div>
+      <div class="coupon-badge">クーポン</div>
+    `;
+    card.addEventListener('click', () => collectStamp(i, card));
+    grid.appendChild(card);
+  }
+}
+
+/* Coupon list */
+function renderCouponList() {
+  const list = document.getElementById('coupon-list');
+  list.innerHTML = '';
+  if (collected.length === 0) {
+    list.innerHTML = '<div class="empty-msg">まだクーポンがありません。<br>会場のQRコードを読み取りましょう。</div>';
+    return;
+  }
+  for (let i = 0; i < TOTAL; i++) {
+    const unlocked = collected.includes(i);
+    const used     = usedCoupons.includes(i);
+    const cp       = COUPONS[i];
+    const item     = document.createElement('div');
+    item.className = 'coupon-item' + (!unlocked ? ' locked' : '');
+    item.innerHTML = `
+      <div class="coupon-left">
+        <div class="venue-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="lock-icon">${unlocked ? '🎟' : '🔒'}</div>
+      </div>
+      <div class="coupon-sep"></div>
+      <div class="coupon-right">
+        <div class="c-label">COUPON</div>
+        <div class="c-title">${unlocked ? cp.title : '？？？'}</div>
+        <div class="c-venue">${VENUES[i]}</div>
+        ${unlocked
+          ? `<div class="c-expire">有効期限：${cp.expire}</div>${used ? '<span class="c-used-badge">使用済み</span>' : ''}`
+          : '<div class="c-expire">スタンプを押すと解錠されます</div>'
+        }
+      </div>
+    `;
+    if (unlocked) item.addEventListener('click', () => openCouponModal(i));
+    list.appendChild(item);
+  }
+}
+
+/* Coupon detail modal */
+function openCouponModal(id) {
+  const cp   = COUPONS[id];
+  const used = usedCoupons.includes(id);
+  const code = 'HAK' + String(id+1).padStart(2,'0') + KEYS[id].toUpperCase();
+  document.getElementById('coupon-modal-inner').innerHTML = `
+    <button class="modal-x" onclick="closeCouponModal()">×</button>
+    <div class="c-tag">🎟 COUPON · ${String(id+1).padStart(2,'0')}</div>
+    <h3>${cp.title}</h3>
+    <div class="c-venue-name">${VENUES[id]}</div>
+    <div class="coupon-code-box">
+      <div class="code-label">クーポンコード（スタッフに提示）</div>
+      <div class="code">${code}</div>
+    </div>
+    <div class="coupon-detail-desc">${cp.desc}</div>
+    <div class="coupon-expire">有効期限：${cp.expire}</div>
+    <button class="use-btn" id="use-btn-${id}" onclick="useCoupon(${id})" ${used ? 'disabled' : ''}>
+      ${used ? '使用済み' : 'このクーポンを使用する'}
+    </button>
+  `;
+  document.getElementById('modal-coupon').classList.add('show');
+}
+function closeCouponModal() {
+  document.getElementById('modal-coupon').classList.remove('show');
+  renderCouponList();
+}
+function useCoupon(id) {
+  if (usedCoupons.includes(id)) return;
+  if (!confirm('このクーポンを使用しますか？\n使用後は元に戻せません。')) return;
+  usedCoupons.push(id);
+  save();
+  const btn = document.getElementById('use-btn-' + id);
+  if (btn) { btn.disabled = true; btn.textContent = '使用済み'; }
+  showToast('クーポンを使用しました');
+}
+
+/* Completion */
+function showComplete() {
+  const now = new Date();
+  const dateStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日';
+  const num = 'HAK-' + String(Math.floor(Math.random()*90000)+10000);
+  document.getElementById('cert-number').textContent = '認定番号：' + num;
+  document.getElementById('cert-date').textContent   = '取得日：'  + dateStr;
+  document.getElementById('modal-complete').classList.add('show');
+}
+function closeComplete() { document.getElementById('modal-complete').classList.remove('show'); }
+
+/* Reset */
+function resetAll() {
+  if (!confirm('スタンプとクーポンをすべてリセットしますか？')) return;
+  collected = []; usedCoupons = [];
+  save(); renderGrid(); updateProgress();
+}
+
+/* URL param → auto stamp */
+function checkURLParam() {
+  const params = new URLSearchParams(location.search);
+  const venue  = params.get('venue');
+  const key    = params.get('key');
+  if (venue === null) return;
+  const id = parseInt(venue);
+  if (id >= 0 && id < TOTAL && (!key || key === KEYS[id])) {
+    setTimeout(() => {
+      const card = document.getElementById('stamp-grid').children[id];
+      if (card) collectStamp(id, card);
+    }, 600);
+  }
+}
+
+renderGrid();
+updateProgress();
+checkURLParam();
+</script>
+</body>
+</html>
